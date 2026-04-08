@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>AI Voice & Soundboard 2026</title>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --card: #1e293b;
+            --accent: #38bdf8;
+            --text: #f8fafc;
+            --btn-sound: #10b981;
+        }
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            margin: 0;
+            min-height: 100vh;
+        }
+        .container {
+            background: var(--card);
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+            width: 100%;
+            max-width: 450px;
+            border: 1px solid #334155;
+            margin-bottom: 2rem;
+        }
+        h1, h2 { text-align: center; color: var(--accent); margin-top: 0; }
+        textarea {
+            width: 100%;
+            height: 100px;
+            background: #0f172a;
+            border: 1px solid #334155;
+            color: white;
+            padding: 10px;
+            border-radius: 0.5rem;
+            box-sizing: border-box;
+            resize: none;
+            margin-bottom: 1rem;
+        }
+        .controls { display: grid; gap: 10px; margin-bottom: 1.5rem; }
+        select, input[type="range"] {
+            background: #0f172a;
+            color: white;
+            border: 1px solid #334155;
+            padding: 5px;
+            border-radius: 0.4rem;
+        }
+        .main-btn {
+            width: 100%;
+            padding: 12px;
+            background: var(--accent);
+            border: none;
+            border-radius: 0.5rem;
+            color: #0f172a;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        
+        /* Стили для звуковой панели */
+        .soundboard {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            width: 100%;
+            max-width: 450px;
+        }
+        .sound-btn {
+            background: #334155;
+            border: 2px solid var(--btn-sound);
+            color: white;
+            padding: 15px;
+            border-radius: 0.8rem;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+            text-transform: capitalize;
+        }
+        .sound-btn:hover {
+            background: var(--btn-sound);
+            color: white;
+            transform: scale(1.05);
+        }
+        .sound-btn:active { transform: scale(0.95); }
+        label { font-size: 0.8rem; color: #94a3b8; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Генератор Голоса</h1>
+    <textarea id="text-input" placeholder="Введите текст..."></textarea>
+    
+    <div class="controls">
+        <label>Голос:</label>
+        <select id="voice-select"></select>
+        <div style="display:flex; justify-content:space-between">
+            <label>Скорость</label>
+            <label>Тон</label>
+        </div>
+        <div style="display:flex; gap:10px">
+            <input type="range" id="rate" min="0.5" max="2" value="1" step="0.1" style="flex:1">
+            <input type="range" id="pitch" min="0" max="2" value="1" step="0.1" style="flex:1">
+        </div>
+    </div>
+    <button class="main-btn" id="speak-btn">ОЗВУЧИТЬ</button>
+</div>
+
+<h2>Звуковые эффекты</h2>
+<div class="soundboard">
+    <button class="sound-btn" onclick="playSound('пердешь.mp3')">💨 Пердеж</button>
+    <button class="sound-btn" onclick="playSound('есть пробитие.mp3')">🎯 Пробитие</button>
+    <button class="sound-btn" onclick="playSound('фонк.mp3')">🎧 Фонк</button>
+    <button class="sound-btn" onclick="playSound('ооуй.mp3')">😯 Ооуй</button>
+    <button class="sound-btn" onclick="playSound('телефон звонит.mp3')">📞 Звонок</button>
+    <button class="sound-btn" style="border-color:#ef4444" onclick="stopAll()">🛑 СТОП</button>
+</div>
+
+<script>
+    const synth = window.speechSynthesis;
+    const voiceSelect = document.querySelector('#voice-select');
+    const textInput = document.querySelector('#text-input');
+    const speakBtn = document.querySelector('#speak-btn');
+    
+    // Хранилище для активных звуков, чтобы можно было их остановить
+    let activeAudios = [];
+
+    function playSound(fileName) {
+        const audio = new Audio(fileName);
+        activeAudios.push(audio);
+        audio.play().catch(e => console.log("Ошибка: файлы должны быть в той же папке", e));
+        
+        // Удаляем из списка после завершения
+        audio.onended = () => {
+            activeAudios = activeAudios.filter(a => a !== audio);
+        };
+    }
+
+    function stopAll() {
+        activeAudios.forEach(a => a.pause());
+        activeAudios = [];
+        synth.cancel();
+    }
+
+    // Логика TTS (Голоса)
+    function populateVoiceList() {
+        let voices = synth.getVoices();
+        voiceSelect.innerHTML = '';
+        voices.forEach((voice) => {
+            const option = document.createElement('option');
+            option.textContent = `${voice.name} (${voice.lang})`;
+            option.setAttribute('data-name', voice.name);
+            voiceSelect.appendChild(option);
+        });
+    }
+
+    populateVoiceList();
+    if (speechSynthesis.onvoiceschanged !== undefined) {
+        speechSynthesis.onvoiceschanged = populateVoiceList;
+    }
+
+    speakBtn.onclick = () => {
+        if (textInput.value !== '') {
+            const utterThis = new SpeechSynthesisUtterance(textInput.value);
+            const selectedOption = voiceSelect.selectedOptions[0].getAttribute('data-name');
+            const voices = synth.getVoices();
+            
+            utterThis.voice = voices.find(v => v.name === selectedOption);
+            utterThis.rate = document.getElementById('rate').value;
+            utterThis.pitch = document.getElementById('pitch').value;
+            synth.speak(utterThis);
+        }
+    };
+</script>
+
+</body>
+</html>
